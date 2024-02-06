@@ -5,8 +5,6 @@
 BiocManager::install("GEOquery", update = FALSE)
 library (GEOquery)
 
-
-
 setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 
 # Now, we are free to access any GEO accession. Note that in the following, I use a file packaged with 
@@ -41,4 +39,3 @@ Table(gsm)[1:5,]
 # Look at Column descriptions:
 Columns(gsm)
 
-# See if clonig works
