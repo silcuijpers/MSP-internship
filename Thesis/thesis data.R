@@ -34,12 +34,22 @@ gset <- gset[complete.cases(exprs(gset)), ]
 #fitting a linear model to gene expression data
 fit <- lmFit(gset, design) 
 
-#??
-cts <- paste(groups, c(tail(groups, -1), head(groups, 1)), sep="-")
-cont.matrix <- makeContrasts(contrasts=cts, levels=design)
-fit2 <- contrasts.fit(fit, cont.matrix)
-show(tT)
+#making a contrast matrix of group1 olive oil and group2 baseline to calculate the log 2 gold change and make a top tabble ranked on B-> Log2fold change
+cts.olive <- c(paste(groups[1],"-",groups[2],sep=""))
+cont.matrix.olive<- makeContrasts(contrasts=cts.olive, levels=design)
+fit.olive <- contrasts.fit(fit, cont.matrix)
+fit.olive <- eBayes(fit.olive, 0.01)# standard devitaion of 0.01
+tT.olive<- topTable(fit.olive, adjust="fdr", sort.by="B", number=Inf)
 
-fit2 <- eBayes(fit2, 0.01)# standard devitaion of 0.01
-tT<- topTable(fit2, adjust="fdr", sort.by="B", number=Inf)
 
+
+
+
+tT <- subset(tT, select=c("ID","adj.P.Val","P.Value","F","GB_ACC","SPOT_ID","Gene.Symbol","Gene.symbol","Gene.title"))
+write.table(tT, file=stdout(), row.names=F, sep="\t")
+
+
+
+tT2 <- topTable(fit2, adjust="fdr", sort.by="B", number=Inf)
+hist(tT2$adj.P.Val, col = "grey", border = "white", xlab = "P-adj",
+     ylab = "Number of genes", main = "P-adj value distribution")
