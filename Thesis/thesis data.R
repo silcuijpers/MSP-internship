@@ -14,12 +14,17 @@ library(BiocManager)
 # Install Bioconductor packages
 BiocManager::install("GEOquery")
 BiocManager::install("limma")
+BiocManager::install("EnhancedVolcano")
+BiocManager::install("VennDiagram")
 
 ######################################################################################## 
 
 #load installed packages
 library(GEOquery)
 library(limma)
+library(EnhancedVolcano)
+library(VennDiagram)
+
 
 #loading data from GEO
 gset <- getGEO("GSE28358",GSEMatrix=TRUE, AnnotGPL=TRUE)
@@ -50,6 +55,7 @@ design <- model.matrix(~group + 0, gset)
 colnames(design) <- levels(gs)
 
 #removing rows with missing values (NA)
+# CHECK if and how many values are removed
 gset <- gset[complete.cases(exprs(gset)), ]
 
 #fitting a linear model to gene expression data
@@ -77,9 +83,13 @@ tT.nuts<-topTable(fit.nuts, adjust="BH", sort.by="B", number = Inf)
 tT.lowfat<-topTable(fit.lowfat, adjust="BH", sort.by="B", number= Inf)
 
 # It think you tried to map the Affymetrix IDs with the Gene Symbols in the expression set,
-# but this won't work. 
-tT.olive <- subset(tT.olive, select=c("ID","adj.P.Val","P.Value","F","GB_ACC","SPOT_ID","Gene.Symbol","Gene.symbol","Gene.title"))
+tT.olive <- subset(tT.olive, select=c("ID", "Gene.symbol", "Gene.ID", "logFC", "P.Value", "adj.P.Val", "B"))
 write.table(tT.olive, file=stdout(), row.names=F, sep="\t")
+
+tT.nuts <- subset(tT.nuts, select=c("ID", "Gene.symbol", "Gene.ID", "logFC", "P.Value", "adj.P.Val", "B"))
+
+tT.lowfat <- subset(tT.lowfat, select=c("ID", "Gene.symbol", "Gene.ID", "logFC", "P.Value", "adj.P.Val", "B"))
+
 
 # Olive oil: This is a plot of the adjusted p-value
 # I would do the same to plot the p-value distribution. 
@@ -106,7 +116,18 @@ hist(tT.lowfat$adj.P.Val, col = "grey", border = "white", xlab = "P-adj",
 hist(tT.lowfat$P.Value, col = "grey", border = "white", xlab = "P.Value",
      ylab = "Number of genes", main = "Low fat: P.Value distribution")
 
-### Determine the differentially expressed genes (DEGs)
 
-### Create a Volcano plot 
+### Create a Volcano plot of the stats results using the R-package: EnhancedVolcano 
+# png('volcanoplot_olive.png')
+EnhancedVolcano(tT.olive, title = "Olive oil", lab = tT.olive$Gene.symbol, 
+                labSize = 3, x = 'logFC', xlim = c(-1,1), y = 'P.Value', ylim = c(0,5), pCutoff = 0.05, FCcutoff = 0.26)
+# dev.off()
+
+### Determine the differentially expressed genes (DEGs)
+DEG_tT.olive <- tT.olive[tT.olive$P.Value< 0.05, c(2:6)]
+dim(DEG_tT.olive)
+colnames(DEG_tT.olive)
+
+### Create a Venn diagram to compare the genes in the after the intervention of olive oil
+### nuts and low fat using the R-package: VennDiagram
 
