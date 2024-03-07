@@ -41,10 +41,15 @@ fvarLabels(gset) <- make.names(fvarLabels(gset))
 gsms <- "10101010101010101032323232323232323232544441054545454554545410324"
 sml <- strsplit(gsms, split="")[[1]]
 
-# replacing values smaller then 0 with NaN and log transfomr each element
+# replacing values smaller then 0 with NaN and log transform each element
 ex<-  exprs(gset)
 ex[which(ex <= 0)]<- NaN
 exprs(gset) <- log2(ex)
+
+#calculate the number of rows with Na
+rows_with_na <- sum(!complete.cases(ex))
+print(rows_with_na)
+
 
 # assigning a groupname to each sample
 gs <- factor(sml)
@@ -55,7 +60,6 @@ design <- model.matrix(~group + 0, gset)
 colnames(design) <- levels(gs)
 
 #removing rows with missing values (NA)
-# CHECK if and how many values are removed
 gset <- gset[complete.cases(exprs(gset)), ]
 
 #fitting a linear model to gene expression data
@@ -82,17 +86,17 @@ tT.olive<- topTable(fit.olive, adjust="BH", sort.by="B", number=Inf)
 tT.nuts<-topTable(fit.nuts, adjust="BH", sort.by="B", number = Inf)
 tT.lowfat<-topTable(fit.lowfat, adjust="BH", sort.by="B", number= Inf)
 
-# It think you tried to map the Affymetrix IDs with the Gene Symbols in the expression set,
+# writing top tables of top signigcant genes for each group
 tT.olive <- subset(tT.olive, select=c("ID", "Gene.symbol", "Gene.ID", "logFC", "P.Value", "adj.P.Val", "B"))
 write.table(tT.olive, file=stdout(), row.names=F, sep="\t")
 
 tT.nuts <- subset(tT.nuts, select=c("ID", "Gene.symbol", "Gene.ID", "logFC", "P.Value", "adj.P.Val", "B"))
+write.table(tT.nuts, file=stdout(), row.names=F, sep="\t")
 
 tT.lowfat <- subset(tT.lowfat, select=c("ID", "Gene.symbol", "Gene.ID", "logFC", "P.Value", "adj.P.Val", "B"))
+write.table(tT.lowfat, file=stdout(), row.names=F, sep="\t")
 
-
-# Olive oil: This is a plot of the adjusted p-value
-# I would do the same to plot the p-value distribution. 
+#plot for adjusted p-value distribution olive oil
 hist(tT.olive$adj.P.Val, col = "grey", border = "white", xlab = "P-adj",
      ylab = "Number of genes", main = "Olive oil: P-adj value distribution")
 
@@ -111,23 +115,59 @@ hist(tT.nuts$P.Value, col = "grey", border = "white", xlab = "P.Value",
 # Lowfat adjusted p-value
 hist(tT.lowfat$adj.P.Val, col = "grey", border = "white", xlab = "P-adj",
      ylab = "Number of genes", main = "Low fat: P-adj value distribution")
-
+#why does is show 20000 genes eventhough I removed some of them
 # Nuts p-value distribution
 hist(tT.lowfat$P.Value, col = "grey", border = "white", xlab = "P.Value",
      ylab = "Number of genes", main = "Low fat: P.Value distribution")
 
 
-### Create a Volcano plot of the stats results using the R-package: EnhancedVolcano 
-# png('volcanoplot_olive.png')
+
+
+#volcanoplot Olive oil
+png('volcanoplot_olive.png')
 EnhancedVolcano(tT.olive, title = "Olive oil", lab = tT.olive$Gene.symbol, 
                 labSize = 3, x = 'logFC', xlim = c(-1,1), y = 'P.Value', ylim = c(0,5), pCutoff = 0.05, FCcutoff = 0.26)
-# dev.off()
+dev.off()
+
+#volcano plot Nuts
+png('volcanoplot_nuts.png')
+EnhancedVolcano(tT.nuts, title = "Nuts", lab = tT.olive$Gene.symbol, 
+                labSize = 3, x = 'logFC', xlim = c(-1,1), y = 'P.Value', ylim = c(0,5), pCutoff = 0.05, FCcutoff = 0.26)
+dev.off()
+
+#volcano plot Low fat
+png('volcanoplot_Lowfat.png')
+EnhancedVolcano(tT.olive, title = "Low fat", lab = tT.olive$Gene.symbol, 
+                labSize = 3, x = 'logFC', xlim = c(-1,1), y = 'P.Value', ylim = c(0,5), pCutoff = 0.05, FCcutoff = 0.26)
+
+dev.off()
 
 ### Determine the differentially expressed genes (DEGs)
 DEG_tT.olive <- tT.olive[tT.olive$P.Value< 0.05, c(2:6)]
 dim(DEG_tT.olive)
 colnames(DEG_tT.olive)
 
+DEG_tT.nuts <- tT.nuts[tT.nuts$P.Value< 0.05, c(2:6)]
+dim(DEG_tT.nuts)
+colnames(DEG_tT.nuts)
+
+DEG_tT.lowfat <- tT.lowfat[tT.lowfat$P.Value< 0.05, c(2:6)]
+dim(DEG_tT.n)
+colnames(DEG_tT.nuts)
+
+
+dT.olive <- decideTests(fit.olive, adjust.method="BH", p.value=0.05, lfc=0)
+dT.nuts <- decideTests(fit.nuts, adjust.method="BH", p.value=0.05, lfc=0)
+dT.lowfat<-decideTests(fit.lowfat, adjust.method="BH", p.value=0.05, lfc=0)
+
+
 ### Create a Venn diagram to compare the genes in the after the intervention of olive oil
 ### nuts and low fat using the R-package: VennDiagram
+
+
+
+vennDiagram( x = list(
+    olive = dT.olive,
+    nuts = dT.nuts,
+    lowfat = dT.lowfat), category.names = c("olive", "nuts","lowfat"))
 
