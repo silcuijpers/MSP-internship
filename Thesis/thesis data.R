@@ -37,7 +37,6 @@ fvarLabels(gset) <- make.names(fvarLabels(gset))
 
 
 # assigning each sample to one of the six groups
-# Did you check whether this maps with the assignement of the groups to the samples? 
 gsms <- "10101010101010101032323232323232323232544441054545454554545410324"
 sml <- strsplit(gsms, split="")[[1]]
 
@@ -153,7 +152,7 @@ EnhancedVolcano(tT.olive, title = "Low fat", lab = tT.olive$Gene.symbol,
 dev.off()
 
 ### Determine the differentially expressed genes (DEGs) olive oil
-DEG_tT.olive <- tT.olive[tT.olive$P.Value< 0.05, c(2:6)]
+DEG_tT.olive <- tT.olive[tT.olive$P.Value< 0.05, c(1:6)]
 dim(DEG_tT.olive)
 colnames(DEG_tT.olive)
 
@@ -165,20 +164,25 @@ DEG_tT.olive[DEG_tT.olive$Gene.symbol == "PTGS2", ]
 DEG_tT.olive[DEG_tT.olive$Gene.symbol == "VEGF", ]
 
 #determine DEGs nuts
-DEG_tT.nuts <- tT.nuts[tT.nuts$P.Value< 0.05, c(2:6)]
+DEG_tT.nuts <- tT.nuts[tT.nuts$P.Value< 0.05, c(1:6)]
 dim(DEG_tT.nuts)
 colnames(DEG_tT.nuts)
 
 #determine DEGs lowfat
-DEG_tT.lowfat <- tT.lowfat[tT.lowfat$P.Value< 0.05, c(2:6)]
+DEG_tT.lowfat <- tT.lowfat[tT.lowfat$P.Value< 0.05, c(1:6)]
 dim(DEG_tT.lowfat)
 colnames(DEG_tT.lowfat)
 
 ### Create a Venn diagram to compare the genes in the after the intervention of olive oil
 ### nuts and low fat using the R-package: VennDiagram
 
-vennDiagram(dT.olive)
+venn.diagram(x = list(DEG_tT.olive$ID, DEG_tT.nuts$ID, DEG_tT.lowfat$ID),
+             category.names = c("olive","nuts","lowfat"),
+             output=FALSE,
+             filename = 'downloads/venn_diagram_duodenum_lath_camp.png',
+             col=c("#472D7BFF","#1F9A8AFF","yellow"),
+             cex = 1.5,
+             cat.pos = 4,
+             main = "DEG")
 
-vennDiagram( x = list(DEG_tT.olive$Gene.ID,DEG_tT.nuts$Gene.ID))
-colnames(DEG_tT.oliv
-DEG_tT.olive$Gene.symbol
+
