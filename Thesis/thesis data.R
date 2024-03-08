@@ -41,6 +41,8 @@ fvarLabels(gset) <- make.names(fvarLabels(gset))
 gsms <- "10101010101010101032323232323232323232544441054545454554545410324"
 sml <- strsplit(gsms, split="")[[1]]
 
+
+
 # replacing values smaller then 0 with NaN and log transform each element
 ex<-  exprs(gset)
 ex[which(ex <= 0)]<- NaN
@@ -52,6 +54,14 @@ print(rows_with_na)
 
 
 # assigning a groupname to each sample
+
+gset$Group[gset$`intervention:ch1` == "olive oil" & gset$`timepoint:ch1` == "baseline"] <- "baseline"
+gset$Group[gset$`intervention:ch1` == "olive oil" & gset$`timepoint:ch1` == "3 months"] <-"olive oil"
+gset$Group[gset$`intervention:ch1` == "nuts" & gset$`timepoint:ch1` == "baseline"] <-"nuts baseline"
+gset$Group[gset$`intervention:ch1` == "nuts" & gset$`timepoint:ch1` == "3 months"] <-"nuts"
+gset$Group[gset$`intervention:ch1` == "low fat" & gset$`timepoint:ch1` == "baseline"] <-"low fat baseline"
+gset$Group[gset$`intervention:ch1` == "low fat" & gset$`timepoint:ch1` == "3 months"] <-"low fat"
+
 gs <- factor(sml)
 groups <- make.names(c("olive oil","baseline","nuts","nuts baseline","low fat","low fat baseline"))
 levels(gs) <- groups
@@ -142,32 +152,33 @@ EnhancedVolcano(tT.olive, title = "Low fat", lab = tT.olive$Gene.symbol,
 
 dev.off()
 
-### Determine the differentially expressed genes (DEGs)
+### Determine the differentially expressed genes (DEGs) olive oil
 DEG_tT.olive <- tT.olive[tT.olive$P.Value< 0.05, c(2:6)]
 dim(DEG_tT.olive)
 colnames(DEG_tT.olive)
 
+# comaring DEGs to the DEGs from paper
+DEG_tT.olive[DEG_tT.olive$Gene.symbol == "IGFR2", ]
+DEG_tT.olive[DEG_tT.olive$Gene.symbol == "ICAM1", ]
+DEG_tT.olive[DEG_tT.olive$Gene.symbol == "TNF", ] #paper has a log2 ratio around -2
+DEG_tT.olive[DEG_tT.olive$Gene.symbol == "PTGS2", ]
+DEG_tT.olive[DEG_tT.olive$Gene.symbol == "VEGF", ]
+
+#determine DEGs nuts
 DEG_tT.nuts <- tT.nuts[tT.nuts$P.Value< 0.05, c(2:6)]
 dim(DEG_tT.nuts)
 colnames(DEG_tT.nuts)
 
+#determine DEGs lowfat
 DEG_tT.lowfat <- tT.lowfat[tT.lowfat$P.Value< 0.05, c(2:6)]
-dim(DEG_tT.n)
-colnames(DEG_tT.nuts)
-
-
-dT.olive <- decideTests(fit.olive, adjust.method="BH", p.value=0.05, lfc=0)
-dT.nuts <- decideTests(fit.nuts, adjust.method="BH", p.value=0.05, lfc=0)
-dT.lowfat<-decideTests(fit.lowfat, adjust.method="BH", p.value=0.05, lfc=0)
-
+dim(DEG_tT.lowfat)
+colnames(DEG_tT.lowfat)
 
 ### Create a Venn diagram to compare the genes in the after the intervention of olive oil
 ### nuts and low fat using the R-package: VennDiagram
 
+vennDiagram(dT.olive)
 
-
-vennDiagram( x = list(
-    olive = dT.olive,
-    nuts = dT.nuts,
-    lowfat = dT.lowfat), category.names = c("olive", "nuts","lowfat"))
-
+vennDiagram( x = list(DEG_tT.olive$Gene.ID,DEG_tT.nuts$Gene.ID))
+colnames(DEG_tT.oliv
+DEG_tT.olive$Gene.symbol
