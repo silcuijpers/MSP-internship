@@ -17,6 +17,7 @@ BiocManager::install("limma")
 BiocManager::install("EnhancedVolcano")
 BiocManager::install("VennDiagram")
 
+
 ######################################################################################## 
 
 #load installed packages
@@ -24,7 +25,7 @@ library(GEOquery)
 library(limma)
 library(EnhancedVolcano)
 library(VennDiagram)
-
+library(ggfortify)
 
 #loading data from GEO
 gset <- getGEO("GSE28358",GSEMatrix=TRUE, AnnotGPL=TRUE)
@@ -39,18 +40,6 @@ fvarLabels(gset) <- make.names(fvarLabels(gset))
 # assigning each sample to one of the six groups
 gsms <- "10101010101010101032323232323232323232544441054545454554545410324"
 sml <- strsplit(gsms, split="")[[1]]
-
-
-
-# replacing values smaller then 0 with NaN and log transform each element
-ex<-  exprs(gset)
-ex[which(ex <= 0)]<- NaN
-exprs(gset) <- log2(ex)
-
-#calculate the number of rows with Na
-rows_with_na <- sum(!complete.cases(ex))
-print(rows_with_na)
-
 
 # assigning a groupname to each sample
 
@@ -67,6 +56,75 @@ levels(gs) <- groups
 gset$group <- gs
 design <- model.matrix(~group + 0, gset)
 colnames(design) <- levels(gs)
+
+expres=exprs(gset)
+expres
+#making boxplot of raw expression data
+ dev.new(width=3+ncol(gset)/6, height=5)
+ png('downloads/boxplotraw.png')
+ ord <- order(gs)  # order samples by group
+  palette(c("#1B9E77", "#7570B3", "#E7298A", "#E6AB02", "#D95F02",
+            "#66A61E", "#A6761D", "#B32424", "#B324B3", "#666666"))
+  par(mar=c(7,4,2,1))
+  title <- paste ("rawdata")
+  boxplot(expres[,ord], boxwex=0.6, notch=T, main=title, outline=FALSE, las=2, col=gs[ord])
+  legend("topright", groups, fill=palette(), bty="n")
+  dev.off()
+
+# plotting pca of raw data
+png('downloads/pca_raw.png')
+texpres=t(expres)
+pca_result <- prcomp(texpres, scale = TRUE)
+autoplot(pca_result, data = as.data.frame(gset), colour = "group", scale = TRUE, label = TRUE, label.size = 3)
+dev.off()
+
+# clustering the raw expression data
+sample_distraw = dist(texpres)
+clusters <-hclust(sample_distraw, method = "complete")
+png('downloads/clustering_raw.png')
+plot(clusters, labels = gset$geo_accession, label.size = 1, cex = 0.5,main = "")
+title(main= "Clustering raw expression data")
+dev.off()
+
+# replacing values smaller then 0 with NaN and log transform each element
+ex<-  exprs(gset)
+ex[which(ex <= 0)]<- NaN
+exprs(gset) <- log2(ex)
+
+#making boxplot of log2 transformed expression data
+
+dev.new(width=3+ncol(gset)/6, height=5)
+png('downloads/boxplotlog2.png')
+ord <- order(gs)  # order samples by group
+palette(c("#1B9E77", "#7570B3", "#E7298A", "#E6AB02", "#D95F02",
+          "#66A61E", "#A6761D", "#B32424", "#B324B3", "#666666"))
+par(mar=c(7,4,2,1))
+title <- paste ("log2 data")
+boxplot(ex[,ord], boxwex=0.6, notch=T, main=title, outline=FALSE, las=2, col=gs[ord])
+legend("bottomleft", groups, fill=palette(), bty="n")
+dev.off()
+
+# plotting pca of log transformed data
+t.ex= t(exprs(gset))
+png('downloads/pcalog.png')
+pca_result_log <- prcomp(t.ex, scale = TRUE)
+autoplot(pca_result_log, data = as.data.frame(gset), colour = "group",scale = TRUE, label = TRUE, label.size = 3)
+dev.off()
+
+#clustering the log transformed data
+sample_dist = dist(t.ex)
+clusters <-hclust(sample_dist, method = "complete")
+
+png('downloads/clustering_log.png')
+plot(clusters, labels = gset$geo_accession, label.size = 1, cex = 0.5,main = "")
+title(main= "Clustering log transformed data")
+dev.off()
+
+#calculate the number of rows with Na
+rows_with_na <- sum(!complete.cases(ex))
+print(rows_with_na)
+
+
 
 #removing rows with missing values (NA)
 gset <- gset[complete.cases(exprs(gset)), ]
@@ -105,48 +163,61 @@ write.table(tT.nuts, file=stdout(), row.names=F, sep="\t")
 tT.lowfat <- subset(tT.lowfat, select=c("ID", "Gene.symbol", "Gene.ID", "logFC", "P.Value", "adj.P.Val", "B"))
 write.table(tT.lowfat, file=stdout(), row.names=F, sep="\t")
 
+
 #plot for adjusted p-value distribution olive oil
+png('downloads/olive-adjustedpvalue.png')
 hist(tT.olive$adj.P.Val, col = "grey", border = "white", xlab = "P-adj",
      ylab = "Number of genes", main = "Olive oil: P-adj value distribution")
+dev.off()
 
 # Olive oil p-value distribution
+png('downloads/olive-pvalue.png')
 hist(tT.olive$P.Value, col = "grey", border = "white", xlab = "P.Value",
      ylab = "Number of genes", main = "Olive oil: P.Value distribution")
+dev.off()
 
 # Nuts adjusted p-value
+png('downloads/nuts-adjustedpvalue.png')
 hist(tT.nuts$adj.P.Val, col = "grey", border = "white", xlab = "P-adj",
      ylab = "Number of genes", main = "Nuts: P-adj value distribution")
+dev.off()
 
 # Nuts p-value distribution
+png('downloads/nuts-pvalue.png')
 hist(tT.nuts$P.Value, col = "grey", border = "white", xlab = "P.Value",
      ylab = "Number of genes", main = "Nuts: P.Value distribution")
+dev.off()
 
 # Lowfat adjusted p-value
+png('downloads/lowfat-adjustedpvalue.png')
 hist(tT.lowfat$adj.P.Val, col = "grey", border = "white", xlab = "P-adj",
      ylab = "Number of genes", main = "Low fat: P-adj value distribution")
+dev.off()
 #why does is show 20000 genes eventhough I removed some of them
-# Nuts p-value distribution
+
+# Lowfat p-value distribution
+png('downloads/lowfat-pvalue.png')
 hist(tT.lowfat$P.Value, col = "grey", border = "white", xlab = "P.Value",
      ylab = "Number of genes", main = "Low fat: P.Value distribution")
-
+dev.off()
 
 
 
 #volcanoplot Olive oil
-png('volcanoplot_olive.png')
+png('downloads/volcanoplot_olive.png')
 EnhancedVolcano(tT.olive, title = "Olive oil", lab = tT.olive$Gene.symbol, 
                 labSize = 3, x = 'logFC', xlim = c(-1,1), y = 'P.Value', ylim = c(0,5), pCutoff = 0.05, FCcutoff = 0.26)
 dev.off()
 
 #volcano plot Nuts
-png('volcanoplot_nuts.png')
-EnhancedVolcano(tT.nuts, title = "Nuts", lab = tT.olive$Gene.symbol, 
+png('downloads/volcanoplot_nuts.png')
+EnhancedVolcano(tT.nuts, title = "Nuts", lab = tT.nuts $Gene.symbol, 
                 labSize = 3, x = 'logFC', xlim = c(-1,1), y = 'P.Value', ylim = c(0,5), pCutoff = 0.05, FCcutoff = 0.26)
 dev.off()
 
 #volcano plot Low fat
-png('volcanoplot_Lowfat.png')
-EnhancedVolcano(tT.olive, title = "Low fat", lab = tT.olive$Gene.symbol, 
+png('downloads/volcanoplot_Lowfat.png')
+EnhancedVolcano(tT.olive, title = "Low fat", lab = tT.lowfat$Gene.symbol, 
                 labSize = 3, x = 'logFC', xlim = c(-1,1), y = 'P.Value', ylim = c(0,5), pCutoff = 0.05, FCcutoff = 0.26)
 
 dev.off()
@@ -156,33 +227,85 @@ DEG_tT.olive <- tT.olive[tT.olive$P.Value< 0.05, c(1:6)]
 dim(DEG_tT.olive)
 colnames(DEG_tT.olive)
 
+#determening all the DEGs of olive which are downregulated
+DEG_tT.olive2.0 <- tT.olive[tT.olive$P.Value< 0.05 & tT.olive$logFC<0, c(1:6)]
+
+#determening all the DEGs of olive which are upregulated
+DEG_tT.olive3.0 <- tT.olive[tT.olive$P.Value< 0.05 & tT.olive$logFC>0, c(1:6)]
+
 # comaring DEGs to the DEGs from paper
-DEG_tT.olive[DEG_tT.olive$Gene.symbol == "IGFR2", ]
-DEG_tT.olive[DEG_tT.olive$Gene.symbol == "ICAM1", ]
-DEG_tT.olive[DEG_tT.olive$Gene.symbol == "TNF", ] #paper has a log2 ratio around -2
-DEG_tT.olive[DEG_tT.olive$Gene.symbol == "PTGS2", ]
-DEG_tT.olive[DEG_tT.olive$Gene.symbol == "VEGF", ]
+tT.olive[tT.olive$Gene.symbol == "IL1B", ]
+tT.olive[tT.olive$Gene.symbol == "IGFR2", ]
+tT.olive[tT.olive$Gene.symbol == "ICAM1", ]
+tT.olive[tT.olive$Gene.symbol == "TNF", ] #paper has a log2 ratio around -2
+tT.olive[tT.olive$Gene.symbol == "PTGS2", ]
+tT.olive[tT.olive$Gene.symbol == "VEGF", ]
+
 
 #determine DEGs nuts
 DEG_tT.nuts <- tT.nuts[tT.nuts$P.Value< 0.05, c(1:6)]
 dim(DEG_tT.nuts)
-colnames(DEG_tT.nuts)
+
+#determening all the DEGs of nuts which are downregulated
+DEG_tT.nuts2.0 <- tT.nuts[tT.nuts$P.Value< 0.05 & tT.nuts$logFC<0, c(1:6)]
+
+#determening all the DEGs of nuts which are upregulated
+DEG_tT.nuts3.0 <- tT.nuts[tT.nuts$P.Value< 0.05 & tT.nuts$logFC>0, c(1:6)]
+tT.nuts[tT.nuts$Gene.symbol == "IL1B", ]
+tT.nuts[tT.nuts$Gene.symbol == "IGFR2", ]
+tT.nuts[tT.nuts$Gene.symbol == "ICAM1", ]
+tT.nuts[tT.nuts$Gene.symbol == "TNF", ]
+tT.nuts[tT.nuts$Gene.symbol == "PTGS2", ]
+tT.nuts[tT.nuts$Gene.symbol == "VEGF", ]
+
 
 #determine DEGs lowfat
 DEG_tT.lowfat <- tT.lowfat[tT.lowfat$P.Value< 0.05, c(1:6)]
 dim(DEG_tT.lowfat)
-colnames(DEG_tT.lowfat)
+#determening all the DEGs of low fat which are downregulated
+DEG_tT.lowfat2.0 <- tT.lowfat[tT.lowfat$logFC<0 &tT.lowfat$P.Value< 0.05,(1:6)]
+
+#determening all the DEGs of low fat which are upregulated
+DEG_tT.lowfat3.0 <- tT.lowfat[tT.lowfat$P.Value< 0.05 & tT.lowfat$logFC>0,(1:6)]
+
+DEG_tT.lowfat3.0
+tT.lowfat[tT.lowfat$Gene.symbol == "IL1B", ]
+tT.lowfat[tT.lowfat$Gene.symbol == "IGFR2", ]
+tT.lowfat[tT.lowfat$Gene.symbol == "ICAM1", ]
+tT.lowfat[tT.lowfat$Gene.symbol == "TNF", ]
+tT.lowfat[tT.lowfat$Gene.symbol == "PTGS2", ]
+tT.lowfat[tT.lowfat$Gene.symbol == "VEGF", ]
 
 ### Create a Venn diagram to compare the genes in the after the intervention of olive oil
 ### nuts and low fat using the R-package: VennDiagram
 
 venn.diagram(x = list(DEG_tT.olive$ID, DEG_tT.nuts$ID, DEG_tT.lowfat$ID),
-             category.names = c("olive","nuts","lowfat"),
+             category.names = c("Olive","Nuts","Lowfat"),
              output=FALSE,
-             filename = 'downloads/venn_diagram_duodenum_lath_camp.png',
-             col=c("#472D7BFF","#1F9A8AFF","yellow"),
+             filename = 'downloads/venn_diagram_comparisondiets.png',
+             col=c("blue","red","yellow"),
              cex = 1.5,
              cat.pos = 4,
-             main = "DEG")
+             main = "DEG overlap between 3 different diets")
+
+#venndiagram downregulated genes
+venn.diagram(x = list(DEG_tT.olive2.0$ID, DEG_tT.nuts2.0$ID, DEG_tT.lowfat2.0$ID),
+             category.names = c("Olive","Nuts","Lowfat"),
+             output=FALSE,
+             filename = 'downloads/venn_diagram_comparisondietsdown.png',
+             col=c("blue","red","yellow"),
+             cex = 1.5,
+             cat.pos = 4,
+             main = "down regulated DEG overlap between 3 different diets")
+
+#venndiagram upregulated genes
+venn.diagram(x = list(DEG_tT.olive3.0$ID, DEG_tT.nuts3.0$ID, DEG_tT.lowfat3.0$ID),
+             category.names = c("Olive","Nuts","Lowfat"),
+             output=FALSE,
+             filename = 'downloads/venn_diagram_comparisondietsup.png',
+             col=c("blue","red","yellow"),
+             cex = 1.5,
+             cat.pos = 3,
+             main = "up regulated DEG overlap between 3 different diets")
 
 
