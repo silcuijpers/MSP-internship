@@ -1,6 +1,6 @@
 #clean workspace TEST
 rm(list=ls())
-
+setwd("~/Documents/GitHub/MSP-internship/Thesis")
 ########################################################################################
 ## You can add the code below to install the R-packages if you don't have them yet
 ## this code is for packages that are originating from Bioconductor
@@ -16,21 +16,33 @@ BiocManager::install("GEOquery")
 BiocManager::install("limma")
 BiocManager::install("EnhancedVolcano")
 BiocManager::install("VennDiagram")
-
-
+BiocManager::install("biomaRt")
+BiocManager::install("Biostrings")
+BiocManager::install("clusterProfiler")
+BiocManager::install("GO.db")
+BiocManager::install("HDO.db")
+BiocManager::install("org.Hs.eg.db")
 ######################################################################################## 
-
 #load installed packages
 library(GEOquery)
 library(limma)
 library(EnhancedVolcano)
 library(VennDiagram)
 library(ggfortify)
+library(Biostrings)
+library(biomaRt)
+library(dplyr)
+library(clusterProfiler)
+library(org.HS.eg.db)
 
 #loading data from GEO
 gset <- getGEO("GSE28358",GSEMatrix=TRUE, AnnotGPL=TRUE)
 if (length(gset) > 1) idx <- grep("GPL571", attr(gset, "names")) else idx <- 1
 gset <- gset[[idx]]
+
+#removing sample that misses baseline measurement
+#row_to_remove <- which(gset$geo_accession == "GSM701152")
+#gset <- gset[-row_to_remove, ]
 
 # Make column names by using the sample names
 # In the current dataset this is for example "GSM701076"
@@ -72,20 +84,40 @@ expres
   dev.off()
 
 # plotting pca of raw data
-png('downloads/pca_raw.png')
 texpres=t(expres)
 pca_result <- prcomp(texpres, scale = TRUE)
-autoplot(pca_result, data = as.data.frame(gset), colour = "group", scale = TRUE, label = TRUE, label.size = 3)
+
+pc1 <- pca_result$x[, 1]
+pc2 <- pca_result$x[, 2]
+pc3 <- pca_result$x[, 3]
+
+pca.13 <- data.frame(x = pc1, y = pc3)
+pca.12<- data.frame(x = pc1, y = pc2)
+pca.23<- data.frame(x = pc2, y = pc3)
+
+pca_model_13 <- prcomp(pca.13)
+pca_model_12 <- prcomp(pca.12)
+pca_model_23 <- prcomp(pca.23)
+
+png('downloads/pca_raw_13.png')
+autoplot(pca_model_13, data = as.data.frame(gset), colour = "group", scale = TRUE, label = TRUE, label.size = 3)
 dev.off()
+png('downloads/pca_raw_12.png')
+autoplot(pca_model_12, data = as.data.frame(gset), colour = "group", scale = TRUE, label = TRUE, label.size = 3)
+dev.off()
+png('downloads/pca_raw_23.png')
+autoplot(pca_model_23, data = as.data.frame(gset), colour = "group", scale = TRUE, label = TRUE, label.size = 3)
+dev.off()
+
 
 # clustering the raw expression data
 sample_distraw = dist(texpres)
 clusters <-hclust(sample_distraw, method = "complete")
 png('downloads/clustering_raw.png')
-plot(clusters, labels = gset$geo_accession, label.size = 1, cex = 0.5,main = "")
+plot(clusters, col=group_colors[group_ids], labels = gset$geo_accession, label.size = 1, cex = 0.5,main = "")
 title(main= "Clustering raw expression data")
 dev.off()
-
+?hclust
 # replacing values smaller then 0 with NaN and log transform each element
 ex<-  exprs(gset)
 ex[which(ex <= 0)]<- NaN
@@ -106,9 +138,28 @@ dev.off()
 
 # plotting pca of log transformed data
 t.ex= t(exprs(gset))
-png('downloads/pcalog.png')
+
 pca_result_log <- prcomp(t.ex, scale = TRUE)
-autoplot(pca_result_log, data = as.data.frame(gset), colour = "group",scale = TRUE, label = TRUE, label.size = 3)
+pc1.log <- pca_result_log$x[, 1]
+pc2.log <- pca_result_log$x[, 2]
+pc3.log <- pca_result_log$x[, 3]
+
+pca.13_log <- data.frame(x = pc1.log, y = pc3.log)
+pca.12_log<- data.frame(x = pc1.log, y = pc2.log)
+pca.23_log<- data.frame(x = pc2.log, y = pc3.log)
+
+pca_model_13log <- prcomp(pca.13_log)
+pca_model_12log <- prcomp(pca.12_log)
+pca_model_23log <- prcomp(pca.23_log)
+
+png('downloads/pcalog_12.png')
+autoplot(pca_model_12log, data = as.data.frame(gset), colour = "group",scale = TRUE, label = TRUE, label.size = 3)
+dev.off()
+png('downloads/pcalog_13.png')
+autoplot(pca_model_13log, data = as.data.frame(gset), colour = "group",scale = TRUE, label = TRUE, label.size = 3)
+dev.off()
+png('downloads/pcalog_23.png')
+autoplot(pca_model_23log, data = as.data.frame(gset), colour = "group",scale = TRUE, label = TRUE, label.size = 3)
 dev.off()
 
 #clustering the log transformed data
@@ -116,15 +167,14 @@ sample_dist = dist(t.ex)
 clusters <-hclust(sample_dist, method = "complete")
 
 png('downloads/clustering_log.png')
-plot(clusters, labels = gset$geo_accession, label.size = 1, cex = 0.5,main = "")
+plot(clusters, col = group_colors[as.numeric(factor(gset$group))], labels = gset$geo_accession, label.size = 1, cex = 0.5,main = "")
 title(main= "Clustering log transformed data")
+
 dev.off()
 
 #calculate the number of rows with Na
 rows_with_na <- sum(!complete.cases(ex))
 print(rows_with_na)
-
-
 
 #removing rows with missing values (NA)
 gset <- gset[complete.cases(exprs(gset)), ]
@@ -160,9 +210,23 @@ write.table(tT.olive, file=stdout(), row.names=F, sep="\t")
 tT.nuts <- subset(tT.nuts, select=c("ID", "Gene.symbol", "Gene.ID", "logFC", "P.Value", "adj.P.Val", "B"))
 write.table(tT.nuts, file=stdout(), row.names=F, sep="\t")
 
+
 tT.lowfat <- subset(tT.lowfat, select=c("ID", "Gene.symbol", "Gene.ID", "logFC", "P.Value", "adj.P.Val", "B"))
 write.table(tT.lowfat, file=stdout(), row.names=F, sep="\t")
 
+#removing gene symbols that are double based on the highest log FC
+
+tT.olive <- tT.olive %>%
+  group_by(Gene.symbol) %>%
+  filter(logFC == max(logFC))
+
+tT.nuts <- tT.nuts %>%
+  group_by(Gene.symbol) %>%
+  filter(logFC == max(logFC))
+
+tT.lowfat <- tT.lowfat %>%
+  group_by(Gene.symbol) %>%
+  filter(logFC == max(logFC))
 
 #plot for adjusted p-value distribution olive oil
 png('downloads/olive-adjustedpvalue.png')
@@ -193,7 +257,6 @@ png('downloads/lowfat-adjustedpvalue.png')
 hist(tT.lowfat$adj.P.Val, col = "grey", border = "white", xlab = "P-adj",
      ylab = "Number of genes", main = "Low fat: P-adj value distribution")
 dev.off()
-#why does is show 20000 genes eventhough I removed some of them
 
 # Lowfat p-value distribution
 png('downloads/lowfat-pvalue.png')
@@ -262,6 +325,7 @@ tT.nuts[tT.nuts$Gene.symbol == "VEGF", ]
 #determine DEGs lowfat
 DEG_tT.lowfat <- tT.lowfat[tT.lowfat$P.Value< 0.05, c(1:6)]
 dim(DEG_tT.lowfat)
+
 #determening all the DEGs of low fat which are downregulated
 DEG_tT.lowfat2.0 <- tT.lowfat[tT.lowfat$logFC<0 &tT.lowfat$P.Value< 0.05,(1:6)]
 
@@ -309,3 +373,70 @@ venn.diagram(x = list(DEG_tT.olive3.0$ID, DEG_tT.nuts3.0$ID, DEG_tT.lowfat3.0$ID
              main = "up regulated DEG overlap between 3 different diets")
 
 
+# adding Ensemb gene id and entrezgene id to affy gene list
+
+ensembl <- useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl")
+
+idlist_olive=getBM(attributes = c('entrezgene_id', "ensembl_gene_id","external_gene_name"),
+                  filters = 'affy_hg_u133_plus_2',
+                  values = DEG_tT.olive$ID, 
+                  mart = ensembl)
+
+idlist_nuts=getBM(attributes = c('entrezgene_id', "ensembl_gene_id","external_gene_name"),
+                    filters = 'affy_hg_u133_plus_2',
+                    values = DEG_tT.nuts$ID, 
+                    mart = ensembl)
+
+idlist_lowfat=getBM(attributes = c('entrezgene_id', "ensembl_gene_id","external_gene_name"),
+      filters = 'affy_hg_u133_plus_2',
+      values = DEG_tT.lowfat$ID, 
+      mart = ensembl)
+
+
+
+# change column name of id_list so that they are similar to DEG_tT
+colnames(idlist)[colnames(idlist) == "entrezgene_id"] <- "Gene.ID"
+colnames(idlist_nuts)[colnames(idlist_nuts) == "entrezgene_id"] <- "Gene.ID"
+colnames(idlist_lowfat)[colnames(idlist_lowfat) == "entrezgene_id"] <- "Gene.ID"
+
+# merging the merging the df with identifiers wiht DEG_tT of each group
+merged_lowfat <- merge(DEG_tT.lowfat, idlist, by = "Gene.ID")
+merged_nuts <- merge(DEG_tT.nuts, idlist, by = "Gene.ID")
+merged_olive <- merge(DEG_tT.olive, idlist_olive, by = "Gene.ID")
+
+
+# over representation analyses with GO database
+ego_olive <- enrichGO(gene          = merged_olive$Gene.ID,
+                     universe      = tT.olive$Gene.ID,
+                     OrgDb         = org.Hs.eg.db,
+                     ont           = "BP",
+                     pAdjustMethod = "BH",
+                     pvalueCutoff  = 0.05,
+                     qvalueCutoff  = 1,
+                     readable      = TRUE)
+
+ego_nuts <- enrichGO(gene =   merged_nuts$Gene.ID,
+                universe      = tT.nuts$Gene.ID,
+                OrgDb         = org.Hs.eg.db,
+                ont           = "BP",
+                pAdjustMethod = "BH",
+                pvalueCutoff  = 0.05,
+                qvalueCutoff  = 1,
+                readable      = TRUE)
+head(ego_nuts)
+
+
+ego <- enrichGO(gene          = merged_lowfat$Gene.ID,
+                universe      = tT.lowfat$Gene.ID,
+                OrgDb         = org.Hs.eg.db,
+                ont           = "BP",
+                pAdjustMethod = "BH",
+                pvalueCutoff  = 0.01,
+                qvalueCutoff  = 1,
+                readable      = TRUE)
+
+kk <- enrichKEGG(gene         =  merged_nuts$Gene.ID,
+                 organism     = 'hsa',
+                 pvalueCutoff = 0.05)
+browseKEGG(kk, 'hsa04110')
+kk@keytype
