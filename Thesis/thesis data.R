@@ -22,6 +22,8 @@ BiocManager::install("clusterProfiler")
 BiocManager::install("GO.db")
 BiocManager::install("HDO.db")
 BiocManager::install("org.Hs.eg.db")
+BiocManager::install("ReactomePA")
+
 ######################################################################################## 
 #load installed packages
 library(GEOquery)
@@ -34,6 +36,8 @@ library(biomaRt)
 library(dplyr)
 library(clusterProfiler)
 library(org.HS.eg.db)
+library(enrichplot)
+library(ReactomePA)
 
 #loading data from GEO
 gset <- getGEO("GSE28358",GSEMatrix=TRUE, AnnotGPL=TRUE)
@@ -73,7 +77,7 @@ expres=exprs(gset)
 expres
 #making boxplot of raw expression data
  dev.new(width=3+ncol(gset)/6, height=5)
- png('downloads/boxplotraw.png')
+ png('Documents/GitHub/MSP-internship/Thesis/plot/boxplotraw.png')
  ord <- order(gs)  # order samples by group
   palette(c("#1B9E77", "#7570B3", "#E7298A", "#E6AB02", "#D95F02",
             "#66A61E", "#A6761D", "#B32424", "#B324B3", "#666666"))
@@ -99,21 +103,24 @@ pca_model_13 <- prcomp(pca.13)
 pca_model_12 <- prcomp(pca.12)
 pca_model_23 <- prcomp(pca.23)
 
-png('downloads/pca_raw_13.png')
-autoplot(pca_model_13, data = as.data.frame(gset), colour = "group", scale = TRUE, label = TRUE, label.size = 3)
+png('downloads/plot/pca_raw_13.png')
+autoplot(pca_model_13, data = as.data.frame(gset), colour = "group", scale = TRUE, label = TRUE, label.size = 3) +
+labs(title = "pca raw 13", x = "PC1", y = "PC3")
 dev.off()
-png('downloads/pca_raw_12.png')
-autoplot(pca_model_12, data = as.data.frame(gset), colour = "group", scale = TRUE, label = TRUE, label.size = 3)
+png('downloads/plot/pca_raw_12.png')
+autoplot(pca_model_12, data = as.data.frame(gset), colour = "group", scale = TRUE, label = TRUE, label.size = 3) +
+labs(title = "pca raw 12", x = "PC1", y = "PC2")
 dev.off()
-png('downloads/pca_raw_23.png')
-autoplot(pca_model_23, data = as.data.frame(gset), colour = "group", scale = TRUE, label = TRUE, label.size = 3)
+png('downloads/plot/pca_raw_23.png')
+autoplot(pca_model_23, data = as.data.frame(gset), colour = "group", scale = TRUE, label = TRUE, label.size = 3) +
+labs(title = "pca raw 23", x = "PC2", y = "PC3")
 dev.off()
 
 
 # clustering the raw expression data
 sample_distraw = dist(texpres)
 clusters <-hclust(sample_distraw, method = "complete")
-png('downloads/clustering_raw.png')
+png('downloads/plot/clustering_raw.png')
 plot(clusters, col=group_colors[group_ids], labels = gset$geo_accession, label.size = 1, cex = 0.5,main = "")
 title(main= "Clustering raw expression data")
 dev.off()
@@ -126,7 +133,7 @@ exprs(gset) <- log2(ex)
 #making boxplot of log2 transformed expression data
 
 dev.new(width=3+ncol(gset)/6, height=5)
-png('downloads/boxplotlog2.png')
+png('downloads/plot/boxplotlog2.png')
 ord <- order(gs)  # order samples by group
 palette(c("#1B9E77", "#7570B3", "#E7298A", "#E6AB02", "#D95F02",
           "#66A61E", "#A6761D", "#B32424", "#B324B3", "#666666"))
@@ -152,21 +159,24 @@ pca_model_13log <- prcomp(pca.13_log)
 pca_model_12log <- prcomp(pca.12_log)
 pca_model_23log <- prcomp(pca.23_log)
 
-png('downloads/pcalog_12.png')
-autoplot(pca_model_12log, data = as.data.frame(gset), colour = "group",scale = TRUE, label = TRUE, label.size = 3)
+png('downloads/plot/pcalog_12.png')
+autoplot(pca_model_12log, data = as.data.frame(gset), colour = "group",scale = TRUE, label = TRUE, label.size = 3) +
+labs(title = "pca log 12", x = "PC1", y = "PC2")
 dev.off()
-png('downloads/pcalog_13.png')
-autoplot(pca_model_13log, data = as.data.frame(gset), colour = "group",scale = TRUE, label = TRUE, label.size = 3)
+png('downloads/plot/pcalog_13.png')
+autoplot(pca_model_13log, data = as.data.frame(gset), colour = "group",scale = TRUE, label = TRUE, label.size = 3) +
+labs(title = "pca log 13", x = "PC1", y = "PC3")
 dev.off()
-png('downloads/pcalog_23.png')
-autoplot(pca_model_23log, data = as.data.frame(gset), colour = "group",scale = TRUE, label = TRUE, label.size = 3)
+png('downloads/plot/pcalog_23.png')
+autoplot(pca_model_23log, data = as.data.frame(gset), colour = "group",scale = TRUE, label = TRUE, label.size = 3) +
+labs(title = "pca log 23", x = "PC2", y = "PC3")
 dev.off()
 
 #clustering the log transformed data
 sample_dist = dist(t.ex)
 clusters <-hclust(sample_dist, method = "complete")
 
-png('downloads/clustering_log.png')
+png('downloads/plot/clustering_log.png')
 plot(clusters, col = group_colors[as.numeric(factor(gset$group))], labels = gset$geo_accession, label.size = 1, cex = 0.5,main = "")
 title(main= "Clustering log transformed data")
 
@@ -229,37 +239,37 @@ tT.lowfat <- tT.lowfat %>%
   filter(logFC == max(logFC))
 
 #plot for adjusted p-value distribution olive oil
-png('downloads/olive-adjustedpvalue.png')
+png('downloads/plot/olive-adjustedpvalue.png')
 hist(tT.olive$adj.P.Val, col = "grey", border = "white", xlab = "P-adj",
      ylab = "Number of genes", main = "Olive oil: P-adj value distribution")
 dev.off()
 
 # Olive oil p-value distribution
-png('downloads/olive-pvalue.png')
+png('downloads/plot/olive-pvalue.png')
 hist(tT.olive$P.Value, col = "grey", border = "white", xlab = "P.Value",
      ylab = "Number of genes", main = "Olive oil: P.Value distribution")
 dev.off()
 
 # Nuts adjusted p-value
-png('downloads/nuts-adjustedpvalue.png')
+png('downloads/plot/nuts-adjustedpvalue.png')
 hist(tT.nuts$adj.P.Val, col = "grey", border = "white", xlab = "P-adj",
      ylab = "Number of genes", main = "Nuts: P-adj value distribution")
 dev.off()
 
 # Nuts p-value distribution
-png('downloads/nuts-pvalue.png')
+png('downloads/plot/nuts-pvalue.png')
 hist(tT.nuts$P.Value, col = "grey", border = "white", xlab = "P.Value",
      ylab = "Number of genes", main = "Nuts: P.Value distribution")
 dev.off()
 
 # Lowfat adjusted p-value
-png('downloads/lowfat-adjustedpvalue.png')
+png('downloads/plot/lowfat-adjustedpvalue.png')
 hist(tT.lowfat$adj.P.Val, col = "grey", border = "white", xlab = "P-adj",
      ylab = "Number of genes", main = "Low fat: P-adj value distribution")
 dev.off()
 
 # Lowfat p-value distribution
-png('downloads/lowfat-pvalue.png')
+png('downloads/plot/lowfat-pvalue.png')
 hist(tT.lowfat$P.Value, col = "grey", border = "white", xlab = "P.Value",
      ylab = "Number of genes", main = "Low fat: P.Value distribution")
 dev.off()
@@ -267,19 +277,19 @@ dev.off()
 
 
 #volcanoplot Olive oil
-png('downloads/volcanoplot_olive.png')
+png('downloads/plot/volcanoplot_olive.png')
 EnhancedVolcano(tT.olive, title = "Olive oil", lab = tT.olive$Gene.symbol, 
                 labSize = 3, x = 'logFC', xlim = c(-1,1), y = 'P.Value', ylim = c(0,5), pCutoff = 0.05, FCcutoff = 0.26)
 dev.off()
 
 #volcano plot Nuts
-png('downloads/volcanoplot_nuts.png')
+png('downloads/plot/volcanoplot_nuts.png')
 EnhancedVolcano(tT.nuts, title = "Nuts", lab = tT.nuts $Gene.symbol, 
                 labSize = 3, x = 'logFC', xlim = c(-1,1), y = 'P.Value', ylim = c(0,5), pCutoff = 0.05, FCcutoff = 0.26)
 dev.off()
 
 #volcano plot Low fat
-png('downloads/volcanoplot_Lowfat.png')
+png('downloads/plot/volcanoplot_Lowfat.png')
 EnhancedVolcano(tT.olive, title = "Low fat", lab = tT.lowfat$Gene.symbol, 
                 labSize = 3, x = 'logFC', xlim = c(-1,1), y = 'P.Value', ylim = c(0,5), pCutoff = 0.05, FCcutoff = 0.26)
 
@@ -346,7 +356,7 @@ tT.lowfat[tT.lowfat$Gene.symbol == "VEGF", ]
 venn.diagram(x = list(DEG_tT.olive$ID, DEG_tT.nuts$ID, DEG_tT.lowfat$ID),
              category.names = c("Olive","Nuts","Lowfat"),
              output=FALSE,
-             filename = 'downloads/venn_diagram_comparisondiets.png',
+             filename = 'downloads/plot/venn_diagram_comparisondiets.png',
              col=c("blue","red","yellow"),
              cex = 1.5,
              cat.pos = 4,
@@ -356,7 +366,7 @@ venn.diagram(x = list(DEG_tT.olive$ID, DEG_tT.nuts$ID, DEG_tT.lowfat$ID),
 venn.diagram(x = list(DEG_tT.olive2.0$ID, DEG_tT.nuts2.0$ID, DEG_tT.lowfat2.0$ID),
              category.names = c("Olive","Nuts","Lowfat"),
              output=FALSE,
-             filename = 'downloads/venn_diagram_comparisondietsdown.png',
+             filename = 'downloads/plot/venn_diagram_comparisondietsdown.png',
              col=c("blue","red","yellow"),
              cex = 1.5,
              cat.pos = 4,
@@ -366,7 +376,7 @@ venn.diagram(x = list(DEG_tT.olive2.0$ID, DEG_tT.nuts2.0$ID, DEG_tT.lowfat2.0$ID
 venn.diagram(x = list(DEG_tT.olive3.0$ID, DEG_tT.nuts3.0$ID, DEG_tT.lowfat3.0$ID),
              category.names = c("Olive","Nuts","Lowfat"),
              output=FALSE,
-             filename = 'downloads/venn_diagram_comparisondietsup.png',
+             filename = 'downloads/plot/venn_diagram_comparisondietsup.png',
              col=c("blue","red","yellow"),
              cex = 1.5,
              cat.pos = 3,
@@ -377,56 +387,59 @@ venn.diagram(x = list(DEG_tT.olive3.0$ID, DEG_tT.nuts3.0$ID, DEG_tT.lowfat3.0$ID
 
 ensembl <- useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl")
 
-idlist_olive=getBM(attributes = c('entrezgene_id', "ensembl_gene_id","external_gene_name"),
-                  filters = 'affy_hg_u133_plus_2',
-                  values = DEG_tT.olive$ID, 
+idlist=getBM(attributes = c('entrezgene_id', "ensembl_gene_id","external_gene_name"),
+                  filters = 'entrezgene_id',
+                  values = tT.olive$Gene.ID, 
                   mart = ensembl)
 
-idlist_nuts=getBM(attributes = c('entrezgene_id', "ensembl_gene_id","external_gene_name"),
-                    filters = 'affy_hg_u133_plus_2',
-                    values = DEG_tT.nuts$ID, 
-                    mart = ensembl)
-
-idlist_lowfat=getBM(attributes = c('entrezgene_id', "ensembl_gene_id","external_gene_name"),
-      filters = 'affy_hg_u133_plus_2',
-      values = DEG_tT.lowfat$ID, 
-      mart = ensembl)
+idlist<- idlist %>%
+  group_by(entrezgene_id) %>%
+  filter(ensembl_gene_id == min(ensembl_gene_id))
 
 
 
 # change column name of id_list so that they are similar to DEG_tT
 colnames(idlist)[colnames(idlist) == "entrezgene_id"] <- "Gene.ID"
-colnames(idlist_nuts)[colnames(idlist_nuts) == "entrezgene_id"] <- "Gene.ID"
-colnames(idlist_lowfat)[colnames(idlist_lowfat) == "entrezgene_id"] <- "Gene.ID"
 
-# merging the merging the df with identifiers wiht DEG_tT of each group
+# merging idlist with DEG_tT entrezgene id identifiers  of each group
 merged_lowfat <- merge(DEG_tT.lowfat, idlist, by = "Gene.ID")
 merged_nuts <- merge(DEG_tT.nuts, idlist, by = "Gene.ID")
-merged_olive <- merge(DEG_tT.olive, idlist_olive, by = "Gene.ID")
+merged_olive <- merge(DEG_tT.olive, idlist, by = "Gene.ID")
+
+# merging idlist with DEG_tT entrezgene id identifiers  of each group 
+#for later comparison
+
+merged_olivetT <- merge(tT.olive, idlist, by = "Gene.ID")
+merged_nutstT <- merge(tT.nuts, idlist, by = "Gene.ID")
+merged_lowfat <- merge(tT.lowfat, idlist, by = "Gene.ID")
 
 
 # over representation analyses with GO database
 ego_olive <- enrichGO(gene          = merged_olive$Gene.ID,
-                     universe      = tT.olive$Gene.ID,
+                    universe        = tT.olive$Gene.ID,  # only works when tT and not idlist is used  
                      OrgDb         = org.Hs.eg.db,
                      ont           = "BP",
                      pAdjustMethod = "BH",
-                     pvalueCutoff  = 0.05,
+                     pvalueCutoff  = 0.7, # should not be to low otherwise goplot function does not work
                      qvalueCutoff  = 1,
                      readable      = TRUE)
+
+png("downloads/Plot/goplot")
+goplot(ego_olive)
+dev.off()
+
 
 ego_nuts <- enrichGO(gene =   merged_nuts$Gene.ID,
                 universe      = tT.nuts$Gene.ID,
                 OrgDb         = org.Hs.eg.db,
                 ont           = "BP",
                 pAdjustMethod = "BH",
-                pvalueCutoff  = 0.05,
+                pvalueCutoff  = 0.7,
                 qvalueCutoff  = 1,
                 readable      = TRUE)
-head(ego_nuts)
 
 
-ego <- enrichGO(gene          = merged_lowfat$Gene.ID,
+ego_lowfat <- enrichGO(gene   = merged_lowfat$Gene.ID,
                 universe      = tT.lowfat$Gene.ID,
                 OrgDb         = org.Hs.eg.db,
                 ont           = "BP",
@@ -435,8 +448,63 @@ ego <- enrichGO(gene          = merged_lowfat$Gene.ID,
                 qvalueCutoff  = 1,
                 readable      = TRUE)
 
-kk <- enrichKEGG(gene         =  merged_nuts$Gene.ID,
+
+png("downloads/Plot/dotplot_olive")
+dotplot(ego_olive, showCategory=15, title = "DOTplot ORA Olive", font.size = 10) 
+dev.off()
+
+png("downloads/Plot/dotplot_nuts")
+dotplot(ego_nuts, showCategory=15, title = "Dotplot ORA Nuts", font.size = 10)
+dev.off()
+
+png("downloads/Plot/dotplot_lowfat")
+dotplot(ego_lowfat, showCategory=15, title = "Dotplot ORA Lowfat", font.size = 10)
+dev.off()
+
+geneList_olive <- sort(merged_olive$Gene.ID, decreasing = TRUE)
+
+
+gsea.GO_olive <- gseGO(geneList = geneList_olive,
+              OrgDb        = org.Hs.eg.db,
+              ont          = "BP",
+              minGSSize    = 50,
+              maxGSSize    = 500,
+              pvalueCutoff = 0.7,
+              verbose      = FALSE)
+
+# Over representation analysis KEGG
+ora.kegg_olive <- enrichKEGG(gene         =  merged_olive$Gene.ID,
+                  organism     = 'hsa',
+                  pvalueCutoff = 0.05)
+
+ora.kegg_nuts <- enrichKEGG(gene         =  merged_nuts$Gene.ID,
                  organism     = 'hsa',
                  pvalueCutoff = 0.05)
-browseKEGG(kk, 'hsa04110')
-kk@keytype
+
+ora.kegg_lowfat <- enrichKEGG(gene         =  merged_lowfat$Gene.ID,
+                   organism     = 'hsa',
+                   pvalueCutoff = 0.05)
+
+
+browseKEGG(kk@result, 'hsa04024')
+kk@result
+?browseKEGG
+# Over representation analysis with wikipathways as database
+
+ora.wiki_olive <- enrichWP(merged_olive$Gene.ID, organism = "Homo sapiens")
+ora.wiki_nuts <- enrichWP(merged_nuts$Gene.ID, organism = "Homo sapiens")
+ora.wiki_lowfat <- enrichWP(merged_lowfat$Gene.ID, organism = "Homo sapiens")
+
+# Over representation analysis with reactome
+x <- enrichPathway(gene=merged_olive$Gene.ID, pvalueCutoff = 0.05, readable=TRUE)
+
+
+merged_olive$logFC<- sort(merged_olive$logFC, decreasing = TRUE)
+
+gsea.GO_olive <- gseGO(geneList = tT.lowfat,
+                       OrgDb        = org.Hs.eg.db,
+                       ont          = "BP",
+                       minGSSize    = 50,
+                       maxGSSize    = 500,
+                       pvalueCutoff = 0.7,
+                       verbose      = FALSE)
