@@ -23,6 +23,7 @@ BiocManager::install("GO.db")
 BiocManager::install("HDO.db")
 BiocManager::install("org.Hs.eg.db")
 BiocManager::install("ReactomePA")
+BiocManager::install("reactome.db")
 
 ######################################################################################## 
 #load installed packages
@@ -461,7 +462,7 @@ png("downloads/Plot/dotplot_lowfat")
 dotplot(ego_lowfat, showCategory=15, title = "Dotplot ORA Lowfat", font.size = 10)
 dev.off()
 
-geneList_olive <- sort(merged_olive$Gene.ID, decreasing = TRUE)
+merged_olive$Gene.ID <- sort(merged_olive$Gene.ID, decreasing = TRUE)
 
 
 gsea.GO_olive <- gseGO(geneList = geneList_olive,
@@ -488,7 +489,7 @@ ora.kegg_lowfat <- enrichKEGG(gene         =  merged_lowfat$Gene.ID,
 
 browseKEGG(kk@result, 'hsa04024')
 kk@result
-?browseKEGG
+
 # Over representation analysis with wikipathways as database
 
 ora.wiki_olive <- enrichWP(merged_olive$Gene.ID, organism = "Homo sapiens")
@@ -496,12 +497,24 @@ ora.wiki_nuts <- enrichWP(merged_nuts$Gene.ID, organism = "Homo sapiens")
 ora.wiki_lowfat <- enrichWP(merged_lowfat$Gene.ID, organism = "Homo sapiens")
 
 # Over representation analysis with reactome
-x <- enrichPathway(gene=merged_olive$Gene.ID, pvalueCutoff = 0.05, readable=TRUE)
+ora.reactome_olive <- enrichPathway(gene=merged_olive$Gene.ID, pvalueCutoff = 0.05, readable=TRUE)
+ora.reactome_nuts <- enrichPathway(gene=merged_nuts$Gene.ID, pvalueCutoff = 0.05, readable=TRUE)
+ora.reactome_lowfat <- enrichPathway(gene=merged_lowfat$Gene.ID, pvalueCutoff = 0.05, readable=TRUE)
 
+
+# Gene set enrichment analysis
+merged_olive$logFC<- sort(merged_olive$logFC, decreasing = TRUE)
+geneList<-merged_olive$Gene.ID
+
+y <- gsePathway(geneList, 
+                pvalueCutoff = 0.5,
+                pAdjustMethod = "BH", 
+                verbose = FALSE)
 
 merged_olive$logFC<- sort(merged_olive$logFC, decreasing = TRUE)
+geneList<-merged_olive$Gene.ID
 
-gsea.GO_olive <- gseGO(geneList = tT.lowfat,
+geneListgsea.GO_olive <- gseGO(geneList = geneList,
                        OrgDb        = org.Hs.eg.db,
                        ont          = "BP",
                        minGSSize    = 50,
