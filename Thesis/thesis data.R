@@ -24,6 +24,8 @@ BiocManager::install("HDO.db")
 BiocManager::install("org.Hs.eg.db")
 BiocManager::install("ReactomePA")
 BiocManager::install("reactome.db")
+install.packages("writexl")
+BiocManager::install("SPIA")
 
 ######################################################################################## 
 #load installed packages
@@ -39,6 +41,13 @@ library(clusterProfiler)
 library(org.HS.eg.db)
 library(enrichplot)
 library(ReactomePA)
+library(writexl)
+library(SPIA)
+library(CePa)
+library(netgsa)
+library(tibble)
+library(graphite)
+
 
 #loading data from GEO
 gset <- getGEO("GSE28358",GSEMatrix=TRUE, AnnotGPL=TRUE)
@@ -78,7 +87,7 @@ expres=exprs(gset)
 expres
 #making boxplot of raw expression data
  dev.new(width=3+ncol(gset)/6, height=5)
- png('Documents/GitHub/MSP-internship/Thesis/plot/boxplotraw.png')
+ png('downloads/plot/boxplotraw.png')
  ord <- order(gs)  # order samples by group
   palette(c("#1B9E77", "#7570B3", "#E7298A", "#E6AB02", "#D95F02",
             "#66A61E", "#A6761D", "#B32424", "#B324B3", "#666666"))
@@ -125,7 +134,7 @@ png('downloads/plot/clustering_raw.png')
 plot(clusters, col=group_colors[group_ids], labels = gset$geo_accession, label.size = 1, cex = 0.5,main = "")
 title(main= "Clustering raw expression data")
 dev.off()
-?hclust
+
 # replacing values smaller then 0 with NaN and log transform each element
 ex<-  exprs(gset)
 ex[which(ex <= 0)]<- NaN
@@ -141,7 +150,7 @@ palette(c("#1B9E77", "#7570B3", "#E7298A", "#E6AB02", "#D95F02",
 par(mar=c(7,4,2,1))
 title <- paste ("log2 data")
 boxplot(ex[,ord], boxwex=0.6, notch=T, main=title, outline=FALSE, las=2, col=gs[ord])
-legend("bottomleft", groups, fill=palette(), bty="n")
+legend("topright", groups, fill=palette(), bty="n")
 dev.off()
 
 # plotting pca of log transformed data
@@ -412,7 +421,7 @@ merged_olive <- merge(DEG_tT.olive, idlist, by = "Gene.ID")
 
 merged_olivetT <- merge(tT.olive, idlist, by = "Gene.ID")
 merged_nutstT <- merge(tT.nuts, idlist, by = "Gene.ID")
-merged_lowfat <- merge(tT.lowfat, idlist, by = "Gene.ID")
+merged_lowfatT <- merge(tT.lowfat, idlist, by = "Gene.ID")
 
 
 # over representation analyses with GO database
@@ -421,103 +430,449 @@ ego_olive <- enrichGO(gene          = merged_olive$Gene.ID,
                      OrgDb         = org.Hs.eg.db,
                      ont           = "BP",
                      pAdjustMethod = "BH",
-                     pvalueCutoff  = 0.7, # should not be to low otherwise goplot function does not work
+                     pvalueCutoff  =  1, # should not be to low otherwise goplot function does not work
                      qvalueCutoff  = 1,
                      readable      = TRUE)
-
-png("downloads/Plot/goplot")
-goplot(ego_olive)
-dev.off()
-
 
 ego_nuts <- enrichGO(gene =   merged_nuts$Gene.ID,
                 universe      = tT.nuts$Gene.ID,
                 OrgDb         = org.Hs.eg.db,
                 ont           = "BP",
                 pAdjustMethod = "BH",
-                pvalueCutoff  = 0.7,
+                pvalueCutoff  = 1,
                 qvalueCutoff  = 1,
                 readable      = TRUE)
-
 
 ego_lowfat <- enrichGO(gene   = merged_lowfat$Gene.ID,
                 universe      = tT.lowfat$Gene.ID,
                 OrgDb         = org.Hs.eg.db,
                 ont           = "BP",
                 pAdjustMethod = "BH",
-                pvalueCutoff  = 0.01,
+                pvalueCutoff  = 1,
                 qvalueCutoff  = 1,
                 readable      = TRUE)
 
 
-png("downloads/Plot/dotplot_olive")
+png("downloads/Plot/ora.dotplot_olive.png")
 dotplot(ego_olive, showCategory=15, title = "DOTplot ORA Olive", font.size = 10) 
 dev.off()
 
-png("downloads/Plot/dotplot_nuts")
+png("downloads/Plot/ora.dotplot_nuts.png")
 dotplot(ego_nuts, showCategory=15, title = "Dotplot ORA Nuts", font.size = 10)
 dev.off()
 
-png("downloads/Plot/dotplot_lowfat")
+png("downloads/Plot/ora.dotplot_lowfat.png")
 dotplot(ego_lowfat, showCategory=15, title = "Dotplot ORA Lowfat", font.size = 10)
 dev.off()
 
-merged_olive$Gene.ID <- sort(merged_olive$Gene.ID, decreasing = TRUE)
+#making excel sheets for GO
+ego_olive.df <- as.data.frame(ego_olive)
+excel_file <- "ora.go_olive.xlsx"
+write_xlsx(ego_olive.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
 
+ego_nuts.df <- as.data.frame(ego_nuts)
+excel_file <- "ora.go_nuts.xlsx"
+write_xlsx(ego_nuts.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
 
-gsea.GO_olive <- gseGO(geneList = geneList_olive,
-              OrgDb        = org.Hs.eg.db,
-              ont          = "BP",
-              minGSSize    = 50,
-              maxGSSize    = 500,
-              pvalueCutoff = 0.7,
-              verbose      = FALSE)
+ego_lowfat.df <- as.data.frame(ego_lowfat)
+excel_file <- "ora.go_lowfat.xlsx"
+write_xlsx(ego_lowfat.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
 
 # Over representation analysis KEGG
 ora.kegg_olive <- enrichKEGG(gene         =  merged_olive$Gene.ID,
                   organism     = 'hsa',
-                  pvalueCutoff = 0.05)
+                  qvalueCutoff = 1,
+                  pvalueCutoff = 1)
 
 ora.kegg_nuts <- enrichKEGG(gene         =  merged_nuts$Gene.ID,
                  organism     = 'hsa',
-                 pvalueCutoff = 0.05)
+                 qvalueCutoff = 1,
+                 pvalueCutoff = 1)
 
 ora.kegg_lowfat <- enrichKEGG(gene         =  merged_lowfat$Gene.ID,
                    organism     = 'hsa',
-                   pvalueCutoff = 0.05)
-
+                   qvalueCutoff = 0.5,
+                   pvalueCutoff = 0.5)
 
 browseKEGG(kk@result, 'hsa04024')
 kk@result
 
+#making excel sheets for ora KEGG
+ora.kegg_olive.df <- as.data.frame(ora.kegg_olive)
+excel_file <- "ora.kegg_olive.xlsx"
+write_xlsx(ora.kegg_olive.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+ora.kegg_nuts.df <- as.data.frame(ora.kegg_nuts)
+excel_file <- "ora.kegg_nuts.xlsx"
+write_xlsx(ora.kegg_nuts.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+ora.kegg_lowfat.df <- as.data.frame(ora.kegg_lowfat)
+excel_file <- "ora.kegg_lowfat.xlsx"
+write_xlsx(ora.kegg_lowfat.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+#making csv files of the ora KEGG results for Decopath analysis
+
+write.csv( ora.kegg_lowfat ,"ora.kegg_lowfat.csv", row.names = FALSE)
+
 # Over representation analysis with wikipathways as database
 
-ora.wiki_olive <- enrichWP(merged_olive$Gene.ID, organism = "Homo sapiens")
-ora.wiki_nuts <- enrichWP(merged_nuts$Gene.ID, organism = "Homo sapiens")
-ora.wiki_lowfat <- enrichWP(merged_lowfat$Gene.ID, organism = "Homo sapiens")
+ora.wiki_olive <- enrichWP(merged_olive$Gene.ID, organism = "Homo sapiens", pvalueCutoff = 1, qvalueCutoff = 1)
+ora.wiki_nuts <- enrichWP(merged_nuts$Gene.ID, organism = "Homo sapiens", pvalueCutoff = 1, qvalueCutoff = 1)
+ora.wiki_lowfat <- enrichWP(merged_lowfat$Gene.ID, organism = "Homo sapiens", pvalueCutoff = 1, qvalueCutoff = 1)
+
+#making excel sheets for ora wikipathways
+
+ora.wiki_olive.df <- as.data.frame(ora.wiki_olive)
+excel_file <- "ora.wiki_olive.xlsx"
+write_xlsx(ora.wiki_olive.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+ora.wiki_nuts.df <- as.data.frame(ora.wiki_nuts)
+excel_file <- "ora.wiki_nuts.xlsx"
+write_xlsx(ora.wiki_nuts.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+ora.wiki_lowfat.df <- as.data.frame(ora.wiki_lowfat)
+excel_file <- "ora.wiki_lowfat.xlsx"
+write_xlsx(ora.wiki_lowfat.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
 
 # Over representation analysis with reactome
-ora.reactome_olive <- enrichPathway(gene=merged_olive$Gene.ID, pvalueCutoff = 0.05, readable=TRUE)
-ora.reactome_nuts <- enrichPathway(gene=merged_nuts$Gene.ID, pvalueCutoff = 0.05, readable=TRUE)
-ora.reactome_lowfat <- enrichPathway(gene=merged_lowfat$Gene.ID, pvalueCutoff = 0.05, readable=TRUE)
+ora.reactome_olive <- enrichPathway(gene=merged_olive$Gene.ID, pvalueCutoff = 1, readable=TRUE, qvalueCutoff = 1)
+ora.reactome_nuts <- enrichPathway(gene=merged_nuts$Gene.ID, pvalueCutoff = 1, readable=TRUE, qvalueCutoff = 1)
+ora.reactome_lowfat <- enrichPathway(gene=merged_lowfat$Gene.ID, pvalueCutoff = 1, readable=TRUE, qvalueCutoff = 1)
+
+#making excel sheets for ora reactome
+ora.reactome_olive.df <- as.data.frame(ora.reactome_olive)
+excel_file <- "ora.reactome_olive.xlsx"
+write_xlsx(ora.reactome_olive.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+ora.reactome_nuts.df <- as.data.frame(ora.reactome_nuts)
+excel_file <- "ora.reactome_nuts.xlsx"
+write_xlsx(ora.reactome_nuts.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+ora.reactome_lowfat.df <- as.data.frame(ora.reactome_lowfat)
+excel_file <- "ora.reactome_lowfat.xlsx"
+write_xlsx(ora.reactome_lowfat.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+# gene set enrichment analysis (gse)
+#making list of ranked genes with expression values for each group
+geneList.olive = merged_olive[,4]
+names(geneList.olive) = as.character(merged_olive[,1])
+geneList.olive = sort(geneList.olive, decreasing = TRUE)
+
+geneList.nuts = merged_nuts[,4]
+names(geneList.nuts) = as.character(merged_nuts[,1])
+geneList.nuts = sort(geneList.nuts, decreasing = TRUE)
+
+geneList.lowfat = merged_lowfat[,4]
+names(geneList.lowfat) = as.character(merged_lowfat[,1])
+geneList.lowfat = sort(geneList.lowfat, decreasing = TRUE)
 
 
-# Gene set enrichment analysis
-merged_olive$logFC<- sort(merged_olive$logFC, decreasing = TRUE)
-geneList<-merged_olive$Gene.ID
-
-y <- gsePathway(geneList, 
-                pvalueCutoff = 0.5,
-                pAdjustMethod = "BH", 
-                verbose = FALSE)
-
-merged_olive$logFC<- sort(merged_olive$logFC, decreasing = TRUE)
-geneList<-merged_olive$Gene.ID
-
-geneListgsea.GO_olive <- gseGO(geneList = geneList,
+# Gene set enrichment analysis with GO
+gsea.GO_olive <- gseGO(geneList = geneList.olive,
                        OrgDb        = org.Hs.eg.db,
                        ont          = "BP",
                        minGSSize    = 50,
                        maxGSSize    = 500,
-                       pvalueCutoff = 0.7,
+                       pvalueCutoff = 1,
                        verbose      = FALSE)
+
+gsea.GO_nuts <- gseGO(geneList = geneList.nuts,
+                       OrgDb        = org.Hs.eg.db,
+                       ont          = "BP",
+                       minGSSize    = 50,
+                       maxGSSize    = 500,
+                       pvalueCutoff = 1,
+                       verbose      = FALSE)
+
+gsea.GO_lowfat <- gseGO(geneList = geneList.lowfat,
+                       OrgDb        = org.Hs.eg.db,
+                       ont          = "BP",
+                       minGSSize    = 50,
+                       maxGSSize    = 500,
+                       pvalueCutoff = 1,
+                       verbose      = FALSE)
+
+#making excel sheets for gsea GO
+gsea.GO_olive.df <- as.data.frame(gsea.GO_olive)
+excel_file <- "gsea.GO_olive.xlsx"
+write_xlsx(gsea.GO_olive.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+gsea.GO_nuts.df <- as.data.frame(gsea.GO_nuts)
+excel_file <- "gsea.GO_nuts.xlsx"
+write_xlsx(gsea.GO_nuts.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+gsea.GO_lowfat.df <- as.data.frame(gsea.GO_lowfat)
+excel_file <- "gsea.GO_lowfat.xlsx"
+write_xlsx(gsea.GO_lowfat.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+## Gene set enrichment analysis with KEGG with p valueCutoff = 1
+gsea.KEGG_olive<- gseKEGG(geneList     = geneList.olive,
+               organism     = 'hsa',
+               pvalueCutoff = 1,
+               verbose      = FALSE)
+
+gsea.KEGG_nuts<- gseKEGG(geneList     = geneList.nuts,
+                          organism     = 'hsa',
+                          pvalueCutoff = 1,
+                          verbose      = FALSE)
+
+gsea.KEGG_lowfat<- gseKEGG(geneList     = geneList.lowfat,
+                          organism     = 'hsa',
+                          pvalueCutoff = 1, 
+                          verbose      = FALSE)
+
+#making excel sheets for gsea KEGG
+gsea.KEGG_olive.df <- as.data.frame(gsea.KEGG_olive)
+excel_file <- "gsea.KEGG_olive.xlsx"
+write_xlsx(gsea.KEGG_olive.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+gsea.KEGG_nuts.df <- as.data.frame(gsea.KEGG_nuts)
+excel_file <- "gsea.KEGG_nuts.xlsx"
+write_xlsx(gsea.KEGG_nuts.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+gsea.KEGG_lowfat.df <- as.data.frame(gsea.KEGG_lowfat)
+excel_file <- "gsea.KEGG_lowfat.xlsx"
+write_xlsx(gsea.KEGG_lowfat.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+#writing csv file of gsea KEGG for decopath analysis
+write.csv( gsea.KEGG_olive ,"gsea.kegg_olive.csv", row.names = FALSE)
+
+## Gene set enrichment analysis with wikipathways using a pvalueCutoff =1
+gsea.WIKI_olive <- gseWP(geneList.olive, organism = "Homo sapiens",pvalueCutoff = 1)
+gsea.WIKI_nuts <- gseWP(geneList.nuts, organism = "Homo sapiens",pvalueCutoff = 1)
+
+#making excel sheets for gsea wikipathways
+gsea.WIKI_olive.df <- as.data.frame(gsea.WIKI_olive)
+excel_file <- "gsea.WIKI_olive.xlsx"
+write_xlsx(gsea.WIKI_olive.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+gsea.WIKI_nuts.df <- as.data.frame(gsea.WIKI_nuts)
+excel_file <- "gsea.WIKI_nuts.xlsx"
+write_xlsx(gsea.WIKI_nuts.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+gsea.WIKI_lowfat.df <- as.data.frame(gsea.WIKI_lowfat)
+excel_file <- "gsea.WIKI_lowfat.xlsx"
+write_xlsx(gsea.WIKI_lowfat.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+## Gene set enrichment analysis with reactome with p valueCutoff= 1
+gsea.reactome_olive <- gsePathway(geneList = geneList.olive, 
+                pvalueCutoff = 1,
+                pAdjustMethod = "BH", 
+                verbose = FALSE)
+
+gsea.reactome_nuts <- gsePathway(geneList = geneList.nuts, 
+                                  pvalueCutoff = 1,
+                                  pAdjustMethod = "BH", 
+                                  verbose = FALSE)
+
+gsea.reactome_lowfat <- gsePathway(geneList = geneList.lowfat, 
+                                  pvalueCutoff = 1,
+                                  pAdjustMethod = "BH", 
+                                  verbose = FALSE)
+
+viewPathway("gene expresseion diet nuts", 
+            readable = TRUE, 
+            foldChange = geneList.nuts)
+
+#making excel sheets for gsea reactome
+gsea.reactome_olive.df <- as.data.frame(gsea.reactome_olive)
+excel_file <- "gsea.reactome_olive.xlsx"
+write_xlsx(gsea.reactome_olive.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+gsea.reactome_nuts.df <- as.data.frame(gsea.reactome_nuts)
+excel_file <- "gsea.reactome_nuts.xlsx"
+write_xlsx(gsea.reactome_nuts.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+gsea.reactome_lowfat.df <- as.data.frame(gsea.reactome_lowfat)
+excel_file <- "gsea.reactome_lowfat.xlsx"
+write_xlsx(gsea.reactome_lowfat.df, excel_file)
+cat("Excel file", excel_file, "has been created.\n")
+
+#topology based analysis
+#Making named vector for each group containing the logFC and Entrez.ID of significantly expressed genes (used for SPIA)
+# Bioconductors SPIA package https://bioconductor.org/packages/release/bioc/vignettes/SPIA/inst/doc/SPIA.pdf
+
+named.vector_olive<- setNames(merged_olive$logFC, merged_olive$Gene.ID)
+named.vector_nuts<- setNames(merged_nuts$logFC, merged_nuts$Gene.ID)
+named.vector_lowfat <- setNames(merged_lowfat$logFC, merged_lowfat$Gene.ID)
+
+# Signaling Pathway Impact Analysis (SPIA) using fisher method to combine the two p-values with fisher to increase the amount of significant samples
+spia_olive <- spia(de=named.vector_olive,all=merged_olivetT$Gene.ID,organism="hsa",data.dir=NULL,pathids=NULL,nB=2000,plots=TRUE,verbose=TRUE,beta = NULL,combine = "fisher")
+spia_nuts <- spia(de=named.vector_nuts,all=merged_nutstT$Gene.ID,organism="hsa",data.dir=NULL,pathids=NULL,nB=2000,plots=TRUE,verbose=TRUE,beta = NULL,combine = "fisher")
+spia_lowfat <- spia(de=named.vector_lowfat,all=merged_lowfatT$Gene.ID,organism="hsa",data.dir=NULL,pathids=NULL,nB=2000,plots=TRUE,verbose=TRUE,beta = NULL,combine = "fisher")
+
+#plotting spia results
+#minimum threshold to have significant results for all thre plots is 0.152, so threshold is set to 0,2
+plotP(spia_olive, threshold = 0.2)
+
+plotP(spia_nuts, threshold = 0.2)
+
+plotP(spia_lowfat, threshold = 0.2)
+#The pathways at the right of the red oblique line are significant after Bonferroni correction of the global p-values
+#The pathways ath the right of the blue oblique line are significant after a FDR correction of global pvalue
+
+# cepa for Over representation analysis
+# Centrality based Pathway Enrichment https://cran.r-project.org/web/packages/CePa/vignettes/CePa.pdf
+
+cepa.olive_Reactome <- cepa.all(dif = merged_olive$Gene.symbol, bk = tT.olive$Gene.symbol, pc = PID.db$Reactome)
+cepa.nuts_Reactome <- cepa.all(dif = merged_nuts$Gene.symbol, bk = tT.nuts$Gene.symbol, pc = PID.db$Reactome)
+cepa.lowfat_Reactome <- cepa.all(dif = merged_lowfat$Gene.symbol, bk = tT.lowfat$Gene.symbol, pc = PID.db$Reactome)
+
+cepa.olive_KEGG <- cepa.all(dif = merged_olive$Gene.symbol, bk = tT.olive$Gene.symbol, pc = PID.db$KEGG)
+cepa.nuts_KEGG <- cepa.all(dif = merged_nuts$Gene.symbol, bk = tT.nuts$Gene.symbol, pc = PID.db$KEGG)
+cepa.lowfat_KEGG <- cepa.all(dif = merged_lowfat$Gene.symbol, bk = tT.lowfat$Gene.symbol, pc = PID.db$KEGG)
+
+PID.db$Reactome$version
+
+# making plots for cepa ora with different types of data catalogues showing all the pathways
+plot(cepa.olive_Reactome)
+plot(cepa.nuts_Reactome)
+plot(cepa.lowfat_Reactome)
+
+plot(cepa.olive_KEGG)
+plot(cepa.nuts_KEGG)
+plot(cepa.lowfat_KEGG)
+
+# making ORA Cepa plots with filtered data p-value < 0.05 for KEGG and Reactome
+plot(cepa.olive_KEGG, adj.method = "none", only.sig = TRUE, cutoff = 0.05)
+plot(cepa.nuts_KEGG, adj.method = "none", only.sig = TRUE, cutoff = 0.05)
+plot(cepa.lowfat_KEGG, adj.method = "none", only.sig = TRUE, cutoff = 0.05)
+
+plot(cepa.olive_Reactome, adj.method = "none", only.sig = TRUE, cutoff = 0.05)
+plot(cepa.nuts_Reactome, adj.method = "none", only.sig = TRUE, cutoff = 0.05)
+plot(cepa.lowfat_Reactome, adj.method = "none", only.sig = TRUE, cutoff = 0.05)
+
+# making expression matrix for GSEA Cepa and Netgsa
+ex.top<- data.frame(ex)
+ex.top <- rownames_to_column(ex.top, var = "affy.ID")
+
+# Cepa requires external gene name and Netgsa requires entrezgene ID
+idlist.ex=getBM(attributes = c('entrezgene_id',"affy_hg_u95av2", "ensembl_gene_id","external_gene_name"),
+             filters = 'entrezgene_id',
+             values = tT.olive$Gene.ID, 
+             mart = ensembl)
+
+# double IDs are filtered out
+idlist.ex<- idlist.ex %>%
+  group_by(entrezgene_id) %>%
+  filter(ensembl_gene_id == min(ensembl_gene_id))
+
+idlist.ex<- idlist.ex[idlist.ex$affy_hg_u95av2 != "", ]
+
+colnames(idlist.ex)[colnames(idlist.ex) == "affy_hg_u95av2"] <- "affy.ID"
+
+matrix.ex <- merge(idlist.ex, ex.top, by = "affy.ID")
+
+matrix.ex<- matrix.ex %>%
+  group_by(entrezgene_id) %>%
+  filter(ensembl_gene_id == min(ensembl_gene_id))
+
+matrix.ex<- matrix.ex %>%
+  group_by(entrezgene_id) %>%
+  filter(affy.ID == min(affy.ID))
+
+#making matrix for cepa gsa
+matrix.ex.cepa <- matrix.ex[, -c(1, 2, 3)]
+matrix.ex.cepa <- as.data.frame(matrix.ex.cepa)
+rownames(matrix.ex.cepa) <- matrix.ex.cepa$external_gene_name
+rownames(matrix.ex.cepa)[rownames(matrix.ex.cepa) == "DTX2P1-UPK3BP1-PMS2P11"] <- "PMS2P11"
+matrix.ex.cepa <- matrix.ex.cepa[, -1]
+  
+matrix.ex <- matrix.ex[, -1]
+matrix.ex <- matrix.ex[, -2]
+
+matrix.ex <- as.data.frame(matrix.ex)
+rownames(matrix.ex) <- matrix.ex$entrezgene_id
+rownames(matrix.ex) <- paste0("ENTREZID:", rownames(matrix.ex))
+matrix.ex <- matrix.ex[, -1]
+matrix.ex <- matrix.ex[, -1]
+
+# making a numerical vector where each number stand for a group 1=olive 2=nuts 3=lowfat
+group.vector <-c(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,1,1,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,1,1,2,2,3)
+unique_groups <- unique(group.vector)
+split_matrices <- vector("list", length(unique_groups))
+
+#splitting the matrix into three groups based on their number for matrix with gene symbols (cepa)
+for (i in seq_along(unique_groups)) {
+  group_id <- unique_groups[i]
+  columns_in_group <- which(group.vector == group_id)
+  split_matrices[[i]] <- matrix.ex.cepa[, columns_in_group, drop = FALSE]}
+
+for (i in seq_along(split_matrices)) {
+  cat("Group", unique_groups[i], ":\n")
+  print(split_matrices[[i]])}
+
+olive_matrix.ex.cepa<-split_matrices[[1]]
+nuts_matrix.ex<-split_matrices[[2]]
+low.fat_matrix.ex<-split_matrices[[3]]
+
+#making vector for each groups to label the control and intervention based on the gsms vector
+#gsms = "10101010101010101032323232323232323232544441054545454554545410324"
+olive.vector<-c(1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0) # 1 stands for baseline and 0 stands for intervention with olive oil
+nuts.vector<-c(3,2,3,2,3,2,3,2,3,2,3,2,3,2,3,2,3,2,3,2,3,2) # 3 stands for baseline and 2 stands for intervention wiht nuts 
+low.fat.vector<-c(5,4,4,4,4,5,4,5,4,5,4,5,4,5,5,4,5,4,5,4,4) # 4 stands for baseline and 5 stands for intervention with lowfat
+
+label = read.cls("https://mcube.nju.edu.cn/jwang/lab/soft/cepa/P53.cls", 
+                 treatment="MUT", control="WT")
+n_samples <- length(olive.vector)
+treatment_label <- "1"
+control_label <- "0"
+class_labels <- paste(ifelse(olive.vector == 1, treatment_label, control_label), collapse = " ")
+writeLines(paste(n_samples, "2 1", class_labels), "olive.vector.cls")
+label.olive = read.cls("olive.vector.cls", treatment=treatment_label, control=control_label)
+
+cepa.all(mat = "olive.output.gct", label = label.olive, pc = PID.db$NCI, nlevel = "tvalue_abs", plevel = "mean")
+
+output_file <- "olive.output.gct"
+write.table(olive_matrix.ex, file = output_file, sep = "\t", quote = FALSE, col.names = NA)
+
+#splitting the matrix into three groups based on their number for matrix with entrez ID
+for (i in seq_along(unique_groups)) {
+  group_id <- unique_groups[i]
+  columns_in_group <- which(group.vector == group_id)
+  split_matrices[[i]] <- matrix.ex[, columns_in_group, drop = FALSE]}
+
+for (i in seq_along(split_matrices)) {
+  cat("Group", unique_groups[i], ":\n")
+  print(split_matrices[[i]])}
+
+olive_matrix.ex<-split_matrices[[1]]
+nuts_matrix.ex<-split_matrices[[2]]
+low.fat_matrix.ex<-split_matrices[[3]]
+
+#Netgsa
+
+paths <- graphite::pathways('hsapiens','kegg')
+database_search <- obtainEdgeList(rownames(olive_matrix.ex), c("kegg", "reactome"))
+
+network_info <- prepareAdjMat(olive_matrix.ex,olive.vector, database_search)
+?prepareAdjMat()
+netgsa<-NetGSA(network_info[["Adj"]], olive_matrix.ex, olive.vector, pathways_mat, 
+       lklMethod = "REHE", sampling = TRUE, 
+       sample_n = 0.25, sample_p = 0.25)
+?netgsa
+str(pathways_mat)
+
